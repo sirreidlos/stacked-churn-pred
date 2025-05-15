@@ -10,8 +10,40 @@ gradient_boosting = joblib.load('gradient_boosting.pkl')  # Gradient Boosting
 svc = joblib.load('svc.pkl')  # Logistic Regression
 meta_model = joblib.load('meta_model_logreg.pkl')  # StackingClassifier or custom meta-model
 
+scaler = joblib.load("scaler.pkl")
+minmax = scaler["minmax"]
+yeo = scaler["yeo"]
+
 # --- UI ---
 st.title("Stacking Classifier Demo")
+
+gender = st.selectbox("Gender", ["Male", "Female"])
+SeniorCitizen = st.selectbox("Senior Citizen", [0, 1])
+Partner = st.selectbox("Partner", ["Yes", "No"])
+Dependents = st.selectbox("Dependents", ["Yes", "No"])
+tenure = st.slider("Tenure (months)", min_value=0, max_value=72, value=12)
+
+PhoneService = st.selectbox("Phone Service", ["Yes", "No"])
+MultipleLines = st.selectbox("Multiple Lines", ["No phone service", "No", "Yes"])
+InternetService = st.selectbox("Internet Service", ["DSL", "Fiber optic", "No"])
+OnlineSecurity = st.selectbox("Online Security", ["No internet service", "No", "Yes"])
+OnlineBackup = st.selectbox("Online Backup", ["No internet service", "No", "Yes"])
+DeviceProtection = st.selectbox("Device Protection", ["No internet service", "No", "Yes"])
+TechSupport = st.selectbox("Tech Support", ["No internet service", "No", "Yes"])
+StreamingTV = st.selectbox("Streaming TV", ["No internet service", "No", "Yes"])
+StreamingMovies = st.selectbox("Streaming Movies", ["No internet service", "No", "Yes"])
+
+Contract = st.selectbox("Contract", ["Month-to-month", "One year", "Two year"])
+PaperlessBilling = st.selectbox("Paperless Billing", ["Yes", "No"])
+PaymentMethod = st.selectbox("Payment Method", [
+    "Electronic check",
+    "Mailed check",
+    "Bank transfer (automatic)",
+    "Credit card (automatic)"
+])
+
+MonthlyCharges = st.number_input("Monthly Charges", min_value=0.0, max_value=500.0, value=70.0)
+TotalCharges = st.text_input("Total Charges")  # Kept as text since original column is object type
 
 # # Example input fields for features
 # feature1 = st.number_input("Feature 1", value=0.0)
