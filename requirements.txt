@@ -1,3 +1,5 @@
 streamlit
 joblib
 scikit-learn
+matplotlib
+shap

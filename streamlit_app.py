@@ -2,13 +2,35 @@ import streamlit as st
 import numpy as np
 import pandas as pd
 import joblib
-
+import shap
+from sklearn.model_selection import cross_val_predict
+import matplotlib.pyplot as plt
 
 # --- Load pretrained models ---
 random_forest = joblib.load('random_forest.pkl')  # Random Forest
 gradient_boosting = joblib.load('gradient_boosting.pkl')  # Gradient Boosting
 svc = joblib.load('svc.pkl')  # Logistic Regression
 meta_model = joblib.load('meta_model_logreg.pkl')  # StackingClassifier or custom meta-model
+
+weights = abs(meta_model.coef_[0])
+feature_labels = [
+    "rf_0", "rf_1",
+    "gb_0", "gb_1",
+    "svc_0", "svc_1"
+]
+
+# df = pd.read_csv("./train_df.csv")
+# x_train = df.drop(columns="Churn")
+# y_train = df["Churn"]
+
+# meta_input1 = cross_val_predict(random_forest, x_train, y_train, cv=5, method='predict_proba')
+# meta_input2 = cross_val_predict(gradient_boosting, x_train, y_train, cv=5, method='predict_proba')
+# meta_input3 = cross_val_predict(svc, x_train, y_train, cv=5, method='predict_proba')
+
+# stacked_features = np.hstack((meta_input1, meta_input2, meta_input3))
+stacked_features = pd.read_csv("./stacked_features.csv")
+explainer = shap.KernelExplainer(meta_model.predict_proba, shap.kmeans(stacked_features, 10))
+
 
 scaler = joblib.load("scaler.pkl")
 minmax = scaler["minmax"]
@@ -50,14 +72,14 @@ if internet_service == "No":
     streaming_tv = "No internet service"
     streaming_movies = "No internet service"
 else:
-
-    st.write("Internet Service Add-ons")
-    online_security = "Yes" if st.checkbox("Online Security") else "No"
-    online_backup = "Yes" if st.checkbox("Online Backup") else "No"
-    device_protection = "Yes" if st.checkbox("Device Protection") else "No"
-    tech_support = "Yes" if st.checkbox("Tech Support") else "No"
-    streaming_tv = "Yes" if st.checkbox("Streaming TV") else "No"
-    streaming_movies = "Yes" if st.checkbox("Streaming Movies") else "No"
+    container = st.container(border=True)
+    container.write("Internet Service Add-ons")
+    online_security = "Yes" if container.checkbox("Online Security") else "No"
+    online_backup = "Yes" if container.checkbox("Online Backup") else "No"
+    device_protection = "Yes" if container.checkbox("Device Protection") else "No"
+    tech_support = "Yes" if container.checkbox("Tech Support") else "No"
+    streaming_tv = "Yes" if container.checkbox("Streaming TV") else "No"
+    streaming_movies = "Yes" if container.checkbox("Streaming Movies") else "No"
 
 
 st.divider()
@@ -88,45 +110,161 @@ onehot_apply_on = ["MultipleLines", "InternetService", "OnlineSecurity", "Online
 
 
 if st.button("Predict"):
-    x_input = pd.Series({
-        "gender": gender,
-        "SeniorCitizen": senior_citizen,
-        "Partner": partner,
-        "Dependents": dependents,
-        "tenure": tenure,
-        "PhoneService": phone_service,
-        "MultipleLines": multiple_lines,
-        "InternetService": internet_service,
-        "OnlineSecurity": online_security,
-        "OnlineBackup": online_backup,
-        "DeviceProtection": device_protection,
-        "TechSupport": tech_support,
-        "StreamingTV": streaming_tv,
-        "StreamingMovies": streaming_movies,
-        "Contract": contract,
-        "PaperlessBilling": paperless_billing,
-        "PaymentMethod": payment_method,
+    data = {
+        "gender": 1 if gender == "Male" else 0,
+        "SeniorCitizen": 1 if senior_citizen == "Yes" else 0,
+        "Partner": 1 if partner == "Yes" else 0,
+        "Dependents": 1 if dependents == "Yes" else 0,
+        "tenure": float(tenure),
+        "PhoneService": 1 if phone_service == "Yes" else 0,
+        "PaperlessBilling": 1 if paperless_billing == "Yes" else 0,
         "MonthlyCharges": monthly_charges,
         "TotalCharges": total_charges,
+    }
+
+    data.update({
+        "MultipleLines_No": 1 if multiple_lines == "No" else 0,
+        "MultipleLines_No phone service": 1 if multiple_lines == "No phone service" else 0,
+        "MultipleLines_Yes": 1 if multiple_lines == "Yes" else 0,
     })
 
-    for col, mapping in manual_mappings.items():
-        x_input[col] = x_input[col].map(mapping)
+    data.update({
+        "InternetService_DSL": 1 if internet_service == "DSL" else 0,
+        "InternetService_Fiber optic": 1 if internet_service == "Fiber optic" else 0,
+        "InternetService_No": 1 if internet_service == "No" else 0,
+    })
 
-    x_input = pd.get_dummies(x_input, columns=onehot_apply_on, dtype=int)
+    data.update({
+        "OnlineSecurity_No": 1 if online_security == "No" else 0,
+        "OnlineSecurity_No internet service": 1 if online_security == "No internet service" else 0,
+        "OnlineSecurity_Yes": 1 if online_security == "Yes" else 0,
+    })
+
+    data.update({
+        "OnlineBackup_No": 1 if online_backup == "No" else 0,
+        "OnlineBackup_No internet service": 1 if online_backup == "No internet service" else 0,
+        "OnlineBackup_Yes": 1 if online_backup == "Yes" else 0,
+    })
+
+    data.update({
+        "DeviceProtection_No": 1 if device_protection == "No" else 0,
+        "DeviceProtection_No internet service": 1 if device_protection == "No internet service" else 0,
+        "DeviceProtection_Yes": 1 if device_protection == "Yes" else 0,
+    })
+
+    data.update({
+        "TechSupport_No": 1 if tech_support == "No" else 0,
+        "TechSupport_No internet service": 1 if tech_support == "No internet service" else 0,
+        "TechSupport_Yes": 1 if tech_support == "Yes" else 0,
+    })
+
+    data.update({
+        "StreamingTV_No": 1 if streaming_tv == "No" else 0,
+        "StreamingTV_No internet service": 1 if streaming_tv == "No internet service" else 0,
+        "StreamingTV_Yes": 1 if streaming_tv == "Yes" else 0,
+    })
+
+    data.update({
+        "StreamingMovies_No": 1 if streaming_movies == "No" else 0,
+        "StreamingMovies_No internet service": 1 if streaming_movies == "No internet service" else 0,
+        "StreamingMovies_Yes": 1 if streaming_movies == "Yes" else 0,
+    })
+
+    data.update({
+        "Contract_Month-to-month": 1 if contract == "Month-to-month" else 0,
+        "Contract_One year": 1 if contract == "One year" else 0,
+        "Contract_Two year": 1 if contract == "Two year" else 0,
+    })
+
+    data.update({
+        "PaymentMethod_Bank transfer (automatic)": 1 if payment_method == "Bank transfer (automatic)" else 0,
+        "PaymentMethod_Credit card (automatic)": 1 if payment_method == "Credit card (automatic)" else 0,
+        "PaymentMethod_Electronic check": 1 if payment_method == "Electronic check" else 0,
+        "PaymentMethod_Mailed check": 1 if payment_method == "Mailed check" else 0,
+    })
+
+    x_input = pd.DataFrame(data, index=[0])
     x_input[["tenure"]] = minmax.transform(x_input[["tenure"]])
     x_input[["TotalCharges", "MonthlyCharges"]] = yeo.transform(x_input[["TotalCharges", "MonthlyCharges"]])
 
+    def format_prediction(position, name, probs, pred):
+        label = "will" if pred[0] == 1 else "will not"
+        confidence = probs[0][pred[0]] * 100
+        color = "red" if pred[0] == 1 else "green"
+        if pred[0] == 0:
+            position.metric(name, "Will Not Churn", f"{confidence:.2f}% confidence")
+        else:
+            position.metric(name, "Will Churn", f"{confidence:.2f}% confidence", delta_color="inverse")
+        # return f"<span style='color:{color}'>{name} thinks the customer {label} churn with {confidence:.2f}% confidence.</span>"
+
+
     random_forest_prob = random_forest.predict_proba(x_input)
+    random_forest_pred = random_forest.predict(x_input)
+
     gradient_boosting_prob = gradient_boosting.predict_proba(x_input)
+    gradient_boosting_pred = gradient_boosting.predict(x_input)
+
     svc_prob = svc.predict_proba(x_input)
+    svc_pred = svc.predict(x_input)
 
-    st.write(f"Model 1 (Random Forest): {random_forest_prob:.4f}")
-    st.write(f"Model 2 (Gradient Boosting): {gradient_boosting_prob:.4f}")
-    st.write(f"Model 3 (Logistic Regression): {svc_prob:.4f}")    
+    a, b, c = st.columns(3)
 
-    stacked_input = np.array([[random_forest_prob, gradient_boosting_prob, svc_prob]])
+    format_prediction(a, "Random Forest", random_forest_prob, random_forest_pred)
+    format_prediction(b, "Gradient Boosting", gradient_boosting_prob, gradient_boosting_pred)
+    format_prediction(c, "SVC", svc_prob, svc_pred)
 
+    stacked_input = np.hstack((random_forest_prob, gradient_boosting_prob, svc_prob))
+
+    meta_model_prob = meta_model.predict_proba(stacked_input)
     meta_model_pred = meta_model.predict(stacked_input)
+    meta_label = "will" if meta_model_pred[0] == 1 else "will not"
+    meta_confidence = meta_model_prob[0][meta_model_pred[0]] * 100
+    meta_color = "red" if meta_model_pred[0] == 1 else "green"
 
-    st.write(f"Final verdict: {meta_model_pred}")
+
+    if meta_model_pred[0] == 0:
+        st.metric("Final Verdict", "Will Not Churn", f"{meta_confidence:.2f}% confidence", border=True)
+    else:
+        st.metric("Final Verdict", "Will Churn", f"{meta_confidence:.2f}% confidence", delta_color="inverse", border=True)
+    # st.write(meta_model.coef_)
+
+    with st.expander("Weights By Meta Model"):
+        selected_features = []
+        selected_features.append("rf_1" if random_forest_pred[0] == 1 else "rf_0")
+        selected_features.append("gb_1" if gradient_boosting_pred[0] == 1 else "gb_0")
+        selected_features.append("svc_1" if svc_pred[0] == 1 else "svc_0")
+    
+        selected_indices = [feature_labels.index(f) for f in selected_features]
+        selected_weights = [weights[i] for i in selected_indices]
+        selected_labels = [feature_labels[i] for i in selected_indices]
+
+        df = pd.DataFrame({
+            "Feature": selected_labels,
+            "Weight": selected_weights
+        })
+
+        st.bar_chart(df.set_index("Feature"))
+    
+    # with st.expander("SHAP Explanation"):
+    #     shap_values = explainer.shap_values(stacked_input)
+    #     st.write("AAAAAAAA")
+    #     # shap.plots.waterfall(shap.Explanation(
+    #     #     values=shap_values[1][0],                    # class 1
+    #     #     base_values=explainer.expected_value[1],
+    #     #     data=stacked_input[0],
+    #     #     feature_names=[f"f{i}" for i in range(X.shape[1])]
+    #     # ))
+    #     fig = plt.figure()
+    #     shap.plots.waterfall(shap.Explanation(
+    #         values=shap_values[1][0],
+    #         base_values=explainer.expected_value[1],
+    #         data=stacked_input[0],
+    #         feature_names=feature_labels
+    #     ))
+    #     st.pyplot(fig)
+
+
+
+
+
+
