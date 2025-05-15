@@ -41,6 +41,13 @@ minmax, yeo = load_scalers()
 
 explainer = get_explainer(meta_model, stacked_features)
 
+weights = abs(meta_model.coef_[0])
+feature_labels = [
+    "rf_0", "rf_1",
+    "gb_0", "gb_1",
+    "svc_0", "svc_1"
+]
+
 # --- UI ---
 st.title("Stacking Classifier Demo")
 
