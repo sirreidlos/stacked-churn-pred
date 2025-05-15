@@ -26,8 +26,8 @@ def load_scalers():
     return scaler["minmax"], scaler["yeo"]
 
 @st.cache_resource
-def get_explainer(model, data_sample):
-    return shap.KernelExplainer(model.predict_proba, shap.kmeans(data_sample, 10))
+def get_explainer(_model, data_sample):
+    return shap.KernelExplainer(_model.predict_proba, shap.kmeans(data_sample, 10))
 
 # Load everything with caching
 models = load_models()
