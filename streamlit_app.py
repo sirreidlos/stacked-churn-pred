@@ -7,34 +7,39 @@ from sklearn.model_selection import cross_val_predict
 import matplotlib.pyplot as plt
 
 # --- Load pretrained models ---
-random_forest = joblib.load('random_forest.pkl')  # Random Forest
-gradient_boosting = joblib.load('gradient_boosting.pkl')  # Gradient Boosting
-svc = joblib.load('svc.pkl')  # Logistic Regression
-meta_model = joblib.load('meta_model_logreg.pkl')  # StackingClassifier or custom meta-model
+@st.cache_resource
+def load_models():
+    return {
+        "random_forest": joblib.load('random_forest.pkl'),
+        "gradient_boosting": joblib.load('gradient_boosting.pkl'),
+        "svc": joblib.load('svc.pkl'),
+        "meta_model": joblib.load('meta_model_logreg.pkl'),
+    }
 
-weights = abs(meta_model.coef_[0])
-feature_labels = [
-    "rf_0", "rf_1",
-    "gb_0", "gb_1",
-    "svc_0", "svc_1"
-]
+@st.cache_data
+def load_stacked_features():
+    return pd.read_csv("./stacked_features.csv")
 
-# df = pd.read_csv("./train_df.csv")
-# x_train = df.drop(columns="Churn")
-# y_train = df["Churn"]
+@st.cache_resource
+def load_scalers():
+    scaler = joblib.load("scaler.pkl")
+    return scaler["minmax"], scaler["yeo"]
 
-# meta_input1 = cross_val_predict(random_forest, x_train, y_train, cv=5, method='predict_proba')
-# meta_input2 = cross_val_predict(gradient_boosting, x_train, y_train, cv=5, method='predict_proba')
-# meta_input3 = cross_val_predict(svc, x_train, y_train, cv=5, method='predict_proba')
+@st.cache_resource
+def get_explainer(model, data_sample):
+    return shap.KernelExplainer(model.predict_proba, shap.kmeans(data_sample, 10))
 
-# stacked_features = np.hstack((meta_input1, meta_input2, meta_input3))
-stacked_features = pd.read_csv("./stacked_features.csv")
-explainer = shap.KernelExplainer(meta_model.predict_proba, shap.kmeans(stacked_features, 10))
+# Load everything with caching
+models = load_models()
+random_forest = models["random_forest"]
+gradient_boosting = models["gradient_boosting"]
+svc = models["svc"]
+meta_model = models["meta_model"]
 
+stacked_features = load_stacked_features()
+minmax, yeo = load_scalers()
 
-scaler = joblib.load("scaler.pkl")
-minmax = scaler["minmax"]
-yeo = scaler["yeo"]
+explainer = get_explainer(meta_model, stacked_features)
 
 # --- UI ---
 st.title("Stacking Classifier Demo")
