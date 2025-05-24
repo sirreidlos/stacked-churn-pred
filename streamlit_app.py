@@ -51,6 +51,20 @@ feature_labels = [
 # --- UI ---
 st.title("Stacking Classifier Demo")
 
+st.markdown('''
+This is an application demonstrating customer churn prediction
+of a telecommunications company. It uses stacking ensemble method
+with random forest, gradient boosting, and SVM as it's base models,
+and logarithmic regression as it's meta model, allowing us direct
+access to the meta model's weights too.
+
+            
+Members:
+1. 2702324745 - Erik Sanjaya
+2. 2702242713 - Anthony Gilles Rudolfo
+3. 2702338334 - Joceline Araki
+''')
+
 st.divider()
 st.header("Personal Information")
 
@@ -120,6 +134,21 @@ manual_mappings = {
 
 onehot_apply_on = ["MultipleLines", "InternetService", "OnlineSecurity", "OnlineBackup", "DeviceProtection", "TechSupport", "StreamingTV", "StreamingMovies", "Contract", "PaymentMethod", ]
 
+st.divider()
+
+help_text = '''The threshold slider can be interpreted as how willing
+you are as to accept a customer churning, with a lower value meaning 
+less willing. This setting is important since finding new customers 
+cost more than retaining existing ones, and balancing between the two
+is also very important.'''
+
+# st.markdown('''
+# The threshold slider can be interpreted as how willing you are as to accept a
+# customer churning, with a lower value meaning less willing. This setting
+# is important since finding new customers cost more than retaining
+# existing ones.
+# ''')
+threshold = st.slider("Threshold", help=help_text, min_value=0.0, max_value=1.0, value=0.5)
 
 if st.button("Predict"):
     data = {
@@ -232,13 +261,14 @@ if st.button("Predict"):
     meta_label = "will" if meta_model_pred[0] == 1 else "will not"
     meta_confidence = meta_model_prob[0][meta_model_pred[0]] * 100
     meta_color = "red" if meta_model_pred[0] == 1 else "green"
+    prob_for_churn = meta_model_prob[:, 1][0]
+    # st.write(type(prob_for_churn))
 
-
-    if meta_model_pred[0] == 0:
-        st.metric("Final Verdict", "Will Not Churn", f"{meta_confidence:.2f}% confidence", border=True)
+    if prob_for_churn <= threshold:
+        st.metric("Final Verdict", "Will Not Churn", f"{(1-prob_for_churn) * 100:.2f}% confidence", border=True)
     else:
-        st.metric("Final Verdict", "Will Churn", f"{meta_confidence:.2f}% confidence", delta_color="inverse", border=True)
-    # st.write(meta_model.coef_)
+        st.metric("Final Verdict", "Will Churn", f"{prob_for_churn*100:.2f}% confidence", delta_color="inverse", border=True)
+    
 
     with st.expander("Weights By Meta Model"):
         selected_features = []
