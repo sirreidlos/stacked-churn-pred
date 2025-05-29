@@ -42,6 +42,7 @@ minmax, yeo = load_scalers()
 explainer = get_explainer(meta_model, stacked_features)
 
 weights = abs(meta_model.coef_[0])
+bias = meta_model.intercept_[0]
 feature_labels = [
     "rf_0", "rf_1",
     "gb_0", "gb_1",
@@ -250,9 +251,6 @@ if st.button("Predict"):
 
     a, b, c = st.columns(3)
 
-    format_prediction(a, "Random Forest", random_forest_prob, random_forest_pred)
-    format_prediction(b, "Gradient Boosting", gradient_boosting_prob, gradient_boosting_pred)
-    format_prediction(c, "SVC", svc_prob, svc_pred)
 
     stacked_input = np.hstack((random_forest_prob, gradient_boosting_prob, svc_prob))
 
@@ -270,12 +268,37 @@ if st.button("Predict"):
         st.metric("Final Verdict", "Will Churn", f"{prob_for_churn*100:.2f}% confidence", delta_color="inverse", border=True)
     
 
-    with st.expander("Weights By Meta Model"):
-        selected_features = []
-        selected_features.append("rf_1" if random_forest_pred[0] == 1 else "rf_0")
-        selected_features.append("gb_1" if gradient_boosting_pred[0] == 1 else "gb_0")
-        selected_features.append("svc_1" if svc_pred[0] == 1 else "svc_0")
-    
+
+    with st.expander("Explanation"):
+        st.markdown("""
+        ### 🔍 How the Prediction Works
+
+        We use a method called **stacking** to make a more accurate prediction.
+
+        Think of it like asking three different experts (models) for their opinions.  
+        Each expert gives a **probability** for whether a customer will churn.
+
+        Then, a **final decision-maker** (called a *meta model*) listens to these experts and makes the final call — but it doesn’t treat all opinions equally. It has learned over time which expert tends to be more reliable and **gives them more weight**.
+
+        ---
+        ### 🤖 What Each Expert Said
+
+        Below are the predictions from each model:
+        """)
+
+        a, b, c = st.columns(3)
+        format_prediction(a, "Gradient Boosting", gradient_boosting_prob, gradient_boosting_pred)
+        format_prediction(b, "Random Forest", random_forest_prob, random_forest_pred)
+        format_prediction(c, "SVC", svc_prob, svc_pred)
+
+        st.divider()
+        st.subheader("📊 How Much Each Expert Influenced the Final Decision")
+
+        selected_features = [
+            "rf_1" if random_forest_pred[0] == 1 else "rf_0",
+            "gb_1" if gradient_boosting_pred[0] == 1 else "gb_0",
+            "svc_1" if svc_pred[0] == 1 else "svc_0"
+        ]
         selected_indices = [feature_labels.index(f) for f in selected_features]
         selected_weights = [weights[i] for i in selected_indices]
         selected_labels = [feature_labels[i] for i in selected_indices]
@@ -284,29 +307,39 @@ if st.button("Predict"):
             "Feature": selected_labels,
             "Weight": selected_weights
         })
-
         st.bar_chart(df.set_index("Feature"))
-    
-    # with st.expander("SHAP Explanation"):
-    #     shap_values = explainer.shap_values(stacked_input)
-    #     st.write("AAAAAAAA")
-    #     # shap.plots.waterfall(shap.Explanation(
-    #     #     values=shap_values[1][0],                    # class 1
-    #     #     base_values=explainer.expected_value[1],
-    #     #     data=stacked_input[0],
-    #     #     feature_names=[f"f{i}" for i in range(X.shape[1])]
-    #     # ))
-    #     fig = plt.figure()
-    #     shap.plots.waterfall(shap.Explanation(
-    #         values=shap_values[1][0],
-    #         base_values=explainer.expected_value[1],
-    #         data=stacked_input[0],
-    #         feature_names=feature_labels
-    #     ))
-    #     st.pyplot(fig)
 
+        st.divider()
+        st.subheader("🧮 Putting It All Together")
 
+        st.markdown("""
+        Here's how the final score is calculated:
 
+        1. Take the probability each expert gave.
+        2. Multiply it by how much we trust that expert (the weight).
+        3. Add everything together with a small bias term.
+        4. Pass it through a formula (called a **logistic function**) to get the final probability.
 
+        **Formula (simplified):**  
+        `Final Score = (RF prob × RF weight) + (GB prob × GB weight) + (SVC prob × SVC weight) + bias`
 
+        This score is converted into a probability like this:
 
+        """, unsafe_allow_html=True)
+
+        st.latex(r"""
+            \text{logit}(x) = w_1 x_1 + w_2 x_2 + \cdots + w_n x_n + b
+        """)
+        st.latex(r"""
+            \text{Probability} = \frac{1}{1 + e^{-(\text{logit}(x))}}
+        """)
+
+        st.markdown(f"""
+        ---
+        ### 📈 Final Result
+
+        - **Predicted chance of churn**: **{prob_for_churn * 100:.2f}%**
+        - **Churn threshold**: **{threshold * 100:.2f}%**
+
+        If the probability is above the threshold, the customer is predicted to **churn**. Otherwise, they are predicted to **stay**.
+        """)
