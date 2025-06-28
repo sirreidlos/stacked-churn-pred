@@ -1,10 +1,12 @@
-# 🎈 Blank app template
+# 🎈 Stacked Churn Prediction Application
 
-A simple Streamlit app template for you to modify!
+A simple Streamlit frontend for the stacked churn pred app.
 
-[![Open in Streamlit](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://blank-app-template.streamlit.app/)
+[![Open in Streamlit](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://stacked-churn-pred.streamlit.app/)
 
 ### How to run it on your own machine
+
+Prerequisite: Python 3.11 recommended
 
 1. Install the requirements
 
